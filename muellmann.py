@@ -1,8 +1,8 @@
 #!/usr/bin/python3
 
-
 from ics import Calendar, Event
 from enum import Enum
+import RPi.GPIO as GPIO
 import requests
 import arrow
 import os.path
@@ -10,10 +10,11 @@ import logging
 import re
 
 class GarbageBin(Enum):
+	NONE = 0
 	GRAY = 1
 	YELLOW = 2
-	BLUE = 3
-	EXTRA = 4
+	BLUE = 4
+	EXTRA = 8
 
 logging.basicConfig(format='%(asctime)s %(levelname)s %(message)s', level=logging.DEBUG)
 
@@ -43,7 +44,6 @@ def read_events_from(f):
 # Find out which garbage bin the given category represents
 #
 def analyze_category(c):
-	color = '?'
 	p = re.compile('gelb', re.IGNORECASE)
 	if p.match(c):
 		return GarbageBin.YELLOW
@@ -69,10 +69,25 @@ def process_event(e):
 		c = c.strip()
 		b = analyze_category(c)
 		logging.info('Category[' + str(i) + "]: '" + c + "' -> " + str(b))
+		set_led_for_garbage_bin(b)
 		i = i + 1
 
-rightnow = arrow.utcnow()
-#rightnow = arrow.get('2022-01-14 04:00:00', 'YYYY-MM-DD HH:mm:ss')
+def set_led_for_garbage_bin(b):
+	if b == GarbageBin.NONE:
+		logging.debug('Switching off all LEDs')
+	elif b == GarbageBin.YELLOW:
+		logging.debug('Switching on yellow LED')
+	elif b == GarbageBin.GRAY:
+		logging.debug('Switching on gray LED')
+	elif b == GarbageBin.BLUE:
+		logging.debug('Switching on blue LED')
+	elif b == GarbageBin.EXTRA:
+		logging.debug('Switching on extra LED')
+	else
+		logging.warning('No idea which LED to switch on or off')
+
+#rightnow = arrow.utcnow()
+rightnow = arrow.get('2022-01-14 04:00:00', 'YYYY-MM-DD HH:mm:ss')
 logging.debug('It is now ' + rightnow.format('YYYY-MM-DD HH:mm:ss'))
 
 logging.info("Making sure current calendar file '" + calendar_file + "' exists")
@@ -87,15 +102,16 @@ for e in events:
 	event_begin = arrow.get(e.begin)
 	event_end = arrow.get(e.end)
 	if event_begin <= rightnow and event_end >= rightnow:
-		logging.info(event_begin.format('YYYY-MM-DD HH:mm:ss') + ' - ' + event_end.format('YYYY-MM-DD HH:mm:ss') + " is now")
+		logging.info(event_begin.format('YYYY-MM-DD HH:mm:ss') + ' - ' + event_end.format('YYYY-MM-DD HH:mm:ss') + ' is now')
 		garbage_day = True
 		process_event(e)
 	elif event_begin < rightnow and event_end < rightnow:
-		logging.debug(event_begin.format('YYYY-MM-DD HH:mm:ss') + ' - ' + event_end.format('YYYY-MM-DD HH:mm:ss') + " is in the past")
+		logging.debug(event_begin.format('YYYY-MM-DD HH:mm:ss') + ' - ' + event_end.format('YYYY-MM-DD HH:mm:ss') + ' is in the past')
 	elif event_begin > rightnow:
-		logging.debug(event_begin.format('YYYY-MM-DD HH:mm:ss') + ' - ' + event_end.format('YYYY-MM-DD HH:mm:ss') + " is in the future")
+		logging.debug(event_begin.format('YYYY-MM-DD HH:mm:ss') + ' - ' + event_end.format('YYYY-MM-DD HH:mm:ss') + ' is in the future')
 	else:
-		logging.warning(event_begin.format('YYYY-MM-DD HH:mm:ss') + ' - ' + event_end.format('YYYY-MM-DD HH:mm:ss') + " is what?")
+		logging.warning(event_begin.format('YYYY-MM-DD HH:mm:ss') + ' - ' + event_end.format('YYYY-MM-DD HH:mm:ss') + ' is what?')
 
 if garbage_day == False:
 	logging.info('No garbage pickup today')
+	set_led_for_garbage_bin(GarbageBin.NONE)
