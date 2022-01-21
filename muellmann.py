@@ -28,39 +28,47 @@ GPIO_PINS = {
 	GarbageBin.EXTRA: 23
 }
 
+#
+# All valid areas for which ICS files exist
+#
+AREAS = [
+	'larrelt',
+	'contantia',
+	'port-arthur-transvaal',
+	'hafen',
+	'barenburg-harsweg',
+	'twixlum-wybelsum-logumer-vorwerk-knock',
+	'kulturviertel-sudlich-fruchteburger-weg-gewerbegebiet-2-polderweg',
+	'conrebbersweg',
+	'kulturviertel-nordlich-fruchteburger-weg',
+	'wolthusen',
+	'aok-viertel-grossfaldern',
+	'kleinfaldern-herrentor',
+	'friesland-borssum-hilmarsum',
+	'amtsgerichtsviertel-und-ringstrasse-am-tonnenhof',
+	'altstadt',
+	'jarssum-widdelswehr',
+	'petkum-uphusen-tholenswehr-marienwehr'
+]
+
 calendar_base_url = 'https://www.bee-emden.de/abfall/entsorgungssystem/abfuhrkalender/ics'
-#
-# larrelt
-# contantia
-# port-arthur-transvaal
-# hafen
-# barenburg-harsweg
-# twixlum-wybelsum-logumer-vorwerk-knock
-# kulturviertel-sudlich-fruchteburger-weg-gewerbegebiet-2-polderweg
-# conrebbersweg
-# kulturviertel-nordlich-fruchteburger-weg
-# wolthusen
-# aok-viertel-grossfaldern
-# kleinfaldern-herrentor
-# friesland-borssum-hilmarsum
-# amtsgerichtsviertel-und-ringstrasse-am-tonnenhof
-# altstadt
-# jarssum-widdelswehr
-# petkum-uphusen-tholenswehr-marienwehr
-#
 calendar_area = 'jarssum-widdelswehr'
 calendar_file = 'abfuhrkalender.ics'
 
 #
-# Download calendar file from url if it does not exist
+# Download calendar file if it does not exist
 #
-def get_calendar_file(u):
-	if os.path.isfile(calendar_file):
-		return
+def get_calendar_file_for_area(a):
+	local_file = a + '-' + calendar_file
+	if os.path.isfile(local_file):
+		# nothing to do
+		pass
 	else:
-		logging.info("Downloading from '" + u + "'")
-		r = requests.get(u, allow_redirects=True)
-		open(calendar_file, 'wb').write(r.content)
+		url = calendar_base_url + '/' + a + '/' + calendar_file
+		logging.info("Downloading from '" + url + "'")
+		r = requests.get(url, allow_redirects=True)
+		open(local_file, 'wb').write(r.content)
+	return local_file
 
 #
 # Read events from file
@@ -82,7 +90,7 @@ def analyze_category(c):
 	if p.match(c):
 		return GarbageBin.GRAY
 	
-	p = re.compile('blau|papier', re.IGNORECASE)
+	p = re.compile('blau|papier|pappe|karton', re.IGNORECASE)
 	if p.match(c):
 		return GarbageBin.BLUE
 
@@ -139,51 +147,57 @@ def init_leds():
 
 
 if __name__ == "__main__":
+	logging.basicConfig(format='%(asctime)s %(levelname)s %(message)s', level=logging.INFO)
+	debug = False
+	time_to_check = arrow.now()
+
 	try:
-		opts, args = getopt.getopt(sys.argv[1:], '', ['debug','area='])
+		opts, args = getopt.getopt(sys.argv[1:], '', ['debug', 'area=', 'date='])
 	except getopt.GetoptError as err:
-		logging.error('Command line options are b0rked')
+		logging.critical('Command line options are b0rked')
 		sys.exit(2)
 
-	debug = False
 	for o, a in opts:
-		if o == "--debug":
-       		 	debug = True
-		elif o == "--area":
-			calendar_area = a
+		if o == '--debug':
+			debug = True
+			logging.getLogger().setLevel(logging.DEBUG)
+			logging.info('Enabling DEBUG mode')
+		elif o == '--area':
+			if a in AREAS:
+				calendar_area = a
+				logging.info("Using area '" + a + "'")
+			else:
+				logging.critical("Unknown area '" + a + "'")
+				sys.exit(2)
+		elif o == '--date':
+			logging.info("Setting time to '" + a + "'")
+			time_to_check = arrow.get(a)
 		else:
-			assert False, 'unhandled option'
+			logging.critical("Unknown option '" + o + "'")
+			sys.exit(2)
 
-	if debug:
-		logging.basicConfig(format='%(asctime)s %(levelname)s %(message)s', level=logging.DEBUG)
-		rightnow = arrow.get('2022-01-14 04:00:00', 'YYYY-MM-DD HH:mm:ss')
-	else:
-		logging.basicConfig(format='%(asctime)s %(levelname)s %(message)s', level=logging.INFO)
-		rightnow = arrow.utcnow()
-
-	logging.debug('It is now ' + rightnow.format('YYYY-MM-DD HH:mm:ss'))
+	logging.debug('Assuming it is now ' + time_to_check.format('YYYY-MM-DD HH:mm:ss'))
 
 	logging.debug('Initialzing LEDs')
 	init_leds()
 
-	logging.info("Making sure current calendar file '" + calendar_file + "' exists")
-	calendar_url = calendar_base_url + '/' + calendar_area + '/' + calendar_file
-	get_calendar_file(calendar_url)
+	logging.info("Making sure current calendar file '" + calendar_file + "' for area '" + calendar_area + "' exists")
+	local_file = get_calendar_file_for_area(calendar_area)
 
-	logging.info("Loading calendar from '" + calendar_file + "'")
-	events = read_events_from(calendar_file)
+	logging.info("Loading calendar from '" + local_file + "'")
+	events = read_events_from(local_file)
 
 	garbage_day = False
 	for e in events:
 		event_begin = arrow.get(e.begin)
 		event_end = arrow.get(e.end)
-		if event_begin <= rightnow and event_end >= rightnow:
+		if event_begin <= time_to_check and event_end >= time_to_check:
 			logging.info(event_begin.format('YYYY-MM-DD HH:mm:ss') + ' - ' + event_end.format('YYYY-MM-DD HH:mm:ss') + ' is now')
 			garbage_day = True
 			process_event(e)
-		elif event_begin < rightnow and event_end < rightnow:
+		elif event_begin < time_to_check and event_end < time_to_check:
 			logging.debug(event_begin.format('YYYY-MM-DD HH:mm:ss') + ' - ' + event_end.format('YYYY-MM-DD HH:mm:ss') + ' is in the past')
-		elif event_begin > rightnow:
+		elif event_begin > time_to_check:
 			logging.debug(event_begin.format('YYYY-MM-DD HH:mm:ss') + ' - ' + event_end.format('YYYY-MM-DD HH:mm:ss') + ' is in the future')
 		else:
 			logging.warning(event_begin.format('YYYY-MM-DD HH:mm:ss') + ' - ' + event_end.format('YYYY-MM-DD HH:mm:ss') + ' is what?')
