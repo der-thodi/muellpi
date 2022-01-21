@@ -28,7 +28,27 @@ GPIO_PINS = {
 	GarbageBin.EXTRA: 23
 }
 
-calendar_url = 'https://www.bee-emden.de/abfall/entsorgungssystem/abfuhrkalender/ics/jarssum-widdelswehr/abfuhrkalender.ics'
+calendar_base_url = 'https://www.bee-emden.de/abfall/entsorgungssystem/abfuhrkalender/ics'
+#
+# larrelt
+# contantia
+# port-arthur-transvaal
+# hafen
+# barenburg-harsweg
+# twixlum-wybelsum-logumer-vorwerk-knock
+# kulturviertel-sudlich-fruchteburger-weg-gewerbegebiet-2-polderweg
+# conrebbersweg
+# kulturviertel-nordlich-fruchteburger-weg
+# wolthusen
+# aok-viertel-grossfaldern
+# kleinfaldern-herrentor
+# friesland-borssum-hilmarsum
+# amtsgerichtsviertel-und-ringstrasse-am-tonnenhof
+# altstadt
+# jarssum-widdelswehr
+# petkum-uphusen-tholenswehr-marienwehr
+#
+calendar_area = 'jarssum-widdelswehr'
 calendar_file = 'abfuhrkalender.ics'
 
 #
@@ -120,7 +140,7 @@ def init_leds():
 
 if __name__ == "__main__":
 	try:
-		opts, args = getopt.getopt(sys.argv[1:], '', ['debug','url='])
+		opts, args = getopt.getopt(sys.argv[1:], '', ['debug','area='])
 	except getopt.GetoptError as err:
 		logging.error('Command line options are b0rked')
 		sys.exit(2)
@@ -129,8 +149,8 @@ if __name__ == "__main__":
 	for o, a in opts:
 		if o == "--debug":
        		 	debug = True
-		elif o == "--url":
-			calendar_url = a
+		elif o == "--area":
+			calendar_area = a
 		else:
 			assert False, 'unhandled option'
 
@@ -147,6 +167,7 @@ if __name__ == "__main__":
 	init_leds()
 
 	logging.info("Making sure current calendar file '" + calendar_file + "' exists")
+	calendar_url = calendar_base_url + '/' + calendar_area + '/' + calendar_file
 	get_calendar_file(calendar_url)
 
 	logging.info("Loading calendar from '" + calendar_file + "'")
