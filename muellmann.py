@@ -16,16 +16,18 @@ class GarbageBin(Enum):
 	GRAY = 1
 	YELLOW = 2
 	BLUE = 3
-	EXTRA = 4
+	TREE = 4
+	EXTRA = 5
 
 #
 # See https://de.pinout.xyz
 #
 GPIO_PINS = {
 	GarbageBin.GRAY: 17,
-	GarbageBin.YELLOW: 27,
-	GarbageBin.BLUE: 22,
-	GarbageBin.EXTRA: 23
+	GarbageBin.YELLOW: 22,
+	GarbageBin.BLUE: 23,
+	GarbageBin.TREE: 24,
+	GarbageBin.EXTRA: 27
 }
 
 #
@@ -75,7 +77,7 @@ def get_calendar_file_for_area(a):
 #
 def read_events_from(f):
 	with open(f, 'r') as file:
-        	ics_text = file.read()
+		ics_text = file.read()
 	return Calendar(ics_text).events
 
 #
@@ -102,6 +104,16 @@ def analyze_category(c):
 def process_event(e):
 	logging.info("Name: '" + e.name + "'")
 
+	#
+	# Christmas tree colection only explicitly mentioned
+	# in name field. Sloppy programming on server side.
+	#
+	p = re.compile('christ|weihnacht', re.IGNORECASE)
+	if p.match(e.name):
+		logging.info('Christmas tree collection found in name')
+		set_led_for_garbage_bin(GarbageBin.TREE)
+		return
+
 	i = 0
 	for c in e.categories:
 		c = c.strip()
@@ -126,6 +138,9 @@ def set_led_for_garbage_bin(b):
 		GPIO.output(GPIO_PINS[b], GPIO.HIGH)
 	elif b == GarbageBin.BLUE:
 		logging.debug('Switching on blue LED')
+		GPIO.output(GPIO_PINS[b], GPIO.HIGH)
+	elif b == GarbageBin.TREE:
+		logging.debug('Switching on christmas tree LED')
 		GPIO.output(GPIO_PINS[b], GPIO.HIGH)
 	elif b == GarbageBin.EXTRA:
 		logging.debug('Switching on extra LED')
@@ -203,5 +218,5 @@ if __name__ == "__main__":
 			logging.warning(event_begin.format('YYYY-MM-DD HH:mm:ss') + ' - ' + event_end.format('YYYY-MM-DD HH:mm:ss') + ' is what?')
 
 	if garbage_day == False:
-		logging.info('No garbage pickup today')
+		logging.info('No garbage collection today')
 		set_led_for_garbage_bin(GarbageBin.NONE)
