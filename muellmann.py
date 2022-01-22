@@ -84,15 +84,15 @@ def read_events_from(f):
 # Find out which garbage bin the given category represents
 #
 def analyze_category(c):
-	p = re.compile('gelb', re.IGNORECASE)
+	p = re.compile('.*gelb.*', re.IGNORECASE)
 	if p.match(c):
 		return GarbageBin.YELLOW
 	
-	p = re.compile('grau|rest', re.IGNORECASE)
+	p = re.compile('.*grau.*|.*rest.*', re.IGNORECASE)
 	if p.match(c):
 		return GarbageBin.GRAY
 	
-	p = re.compile('blau|papier|pappe|karton', re.IGNORECASE)
+	p = re.compile('.*blau.*|.*papier.*|.*pappe.*|.*karton.*', re.IGNORECASE)
 	if p.match(c):
 		return GarbageBin.BLUE
 
@@ -108,11 +108,10 @@ def process_event(e):
 	# Christmas tree colection only explicitly mentioned
 	# in name field. Sloppy programming on server side.
 	#
-	p = re.compile('christ|weihnacht', re.IGNORECASE)
+	p = re.compile('.*christ.*|.*weihnacht.*', re.IGNORECASE)
 	if p.match(e.name):
 		logging.info('Christmas tree collection found in name')
 		set_led_for_garbage_bin(GarbageBin.TREE)
-		return
 
 	i = 0
 	for c in e.categories:
