@@ -2,7 +2,7 @@
 
 from ics import Calendar, Event
 from enum import Enum
-import RPi.GPIO as gpio
+import RPi.GPIO as GPIO
 import requests
 import arrow
 import os.path
@@ -117,19 +117,19 @@ def set_led_for_garbage_bin(b):
 	if b == GarbageBin.NONE:
 		logging.debug('Switching off all LEDs')
 		for k in GPIO_PINS.keys():
-			gpio.output(GPIO_PINS[k], gpio.LOW)
+			GPIO.output(GPIO_PINS[k], GPIO.LOW)
 	elif b == GarbageBin.YELLOW:
 		logging.debug('Switching on yellow LED')
-		gpio.output(GPIO_PINS[b], gpio.HIGH)
+		GPIO.output(GPIO_PINS[b], GPIO.HIGH)
 	elif b == GarbageBin.GRAY:
 		logging.debug('Switching on gray LED')
-		gpio.output(GPIO_PINS[b], gpio.HIGH)
+		GPIO.output(GPIO_PINS[b], GPIO.HIGH)
 	elif b == GarbageBin.BLUE:
 		logging.debug('Switching on blue LED')
-		gpio.output(GPIO_PINS[b], gpio.HIGH)
+		GPIO.output(GPIO_PINS[b], GPIO.HIGH)
 	elif b == GarbageBin.EXTRA:
 		logging.debug('Switching on extra LED')
-		gpio.output(GPIO_PINS[b], gpio.HIGH)
+		GPIO.output(GPIO_PINS[b], GPIO.HIGH)
 	else:
 		logging.warning('No idea which LED to switch on or off')
 
@@ -137,13 +137,13 @@ def set_led_for_garbage_bin(b):
 # Make sure LEDs/PINs are in known state
 #
 def init_leds():
-	gpio.setwarnings(False)
-	gpio.cleanup()
-	gpio.setmode(gpio.BCM)
+	GPIO.setwarnings(False)
+	GPIO.cleanup()
+	GPIO.setmode(GPIO.BCM)
 	for b in GarbageBin:
 		if b != GarbageBin.NONE:
 			logging.debug('Configuring GPIO pin ' + str(GPIO_PINS[b]) + ' as output for ' + str(b))
-			gpio.setup(GPIO_PINS[b], gpio.OUT)
+			GPIO.setup(GPIO_PINS[b], GPIO.OUT, initial=GPIO.LOW)
 
 
 if __name__ == "__main__":
